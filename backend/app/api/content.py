@@ -1,11 +1,16 @@
+import os
 import structlog
-from flask import Blueprint, request, jsonify, abort
+from flask import Blueprint, request, jsonify, current_app
 from pydantic import BaseModel, ValidationError, model_validator
 from typing import Optional, Literal
+from werkzeug.utils import secure_filename
 
 from app.core.rate_limit import limiter
 from app.core.n8n_client import N8NClient
 import app.services.content_service as content_service
+
+ALLOWED_MIME_TYPES = {"application/pdf"}
+MAX_PDF_SIZE = 50 * 1024 * 1024  # 50 MB
 
 logger = structlog.get_logger()
 
@@ -55,7 +60,12 @@ def create_content():
             base_url=current_app.config["N8N_BASE_URL"],
             api_key=current_app.config["N8N_API_KEY"],
         )
-        n8n.trigger_ingestion(item.id, payload.type, payload.raw_url, payload.body)
+        n8n.trigger_ingestion({
+            "content_item_id": item.id,
+            "type": payload.type,
+            "raw_url": payload.raw_url,
+            "body": payload.body,
+        })
     except Exception as e:
         logger.warning("N8N ingestion trigger failed", item_id=item.id, error=str(e))
 
@@ -131,3 +141,51 @@ def delete_content(item_id: str):
     if not deleted:
         return jsonify({"data": None, "error": {"code": "NOT_FOUND", "message": "Content item not found"}}), 404
     return "", 204
+
+
+@content_bp.post("/upload")
+@limiter.limit("10 per minute")
+def upload_pdf():
+    """Accept a PDF file upload, extract text, save as content item, enrich with AI."""
+    if "file" not in request.files:
+        return jsonify({"data": None, "error": {"code": "BAD_REQUEST", "message": "No file part in request"}}), 400
+
+    file = request.files["file"]
+    if not file.filename:
+        return jsonify({"data": None, "error": {"code": "BAD_REQUEST", "message": "No file selected"}}), 400
+
+    # MIME type validation — check both declared type and magic bytes
+    mime = file.content_type or ""
+    if mime not in ALLOWED_MIME_TYPES:
+        # fallback: check filename extension
+        if not file.filename.lower().endswith(".pdf"):
+            return jsonify({"data": None, "error": {"code": "UNSUPPORTED_MEDIA_TYPE", "message": "Only PDF files are accepted"}}), 415
+
+    filename = secure_filename(file.filename)
+    upload_dir = current_app.config.get("UPLOAD_FOLDER", "/app/uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    save_path = os.path.join(upload_dir, filename)
+    file.save(save_path)
+
+    try:
+        text = content_service.extract_pdf_text(save_path)
+    except Exception as e:
+        logger.warning("PDF text extraction failed", filename=filename, error=str(e))
+        text = ""
+
+    title = request.form.get("title") or filename.rsplit(".", 1)[0]
+
+    item = content_service.create_content_item(
+        type_="pdf",
+        title=title,
+        body=text,
+    )
+
+    # PDF is already extracted — run AI enrichment directly without n8n
+    try:
+        from app.services.ai_service import enrich_content_item
+        enrich_content_item(item.id, text, "pdf")
+    except Exception as e:
+        logger.warning("PDF AI enrichment failed", item_id=item.id, error=str(e))
+
+    return jsonify({"data": item.to_dict(), "meta": None, "error": None}), 201

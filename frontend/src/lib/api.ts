@@ -88,6 +88,27 @@ export const api = {
 
     delete: (id: string) =>
       apiFetch<void>(`/api/content/${id}`, { method: "DELETE" }),
+
+    uploadPdf: async (file: File, title?: string): Promise<ApiResponse<ContentItem>> => {
+      const form = new FormData();
+      form.append("file", file);
+      if (title) form.append("title", title);
+      try {
+        const res = await fetch(`${BASE_URL}/api/content/upload`, {
+          method: "POST",
+          body: form,
+          // Do NOT set Content-Type — browser sets multipart boundary automatically
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          return { data: null, error: json.error ?? { code: String(res.status), message: res.statusText } };
+        }
+        const json = await res.json();
+        return { data: json.data, error: null };
+      } catch (err) {
+        return { data: null, error: { code: "NETWORK_ERROR", message: err instanceof Error ? err.message : "Network error" } };
+      }
+    },
   },
 
   collections: {
