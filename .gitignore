@@ -6,9 +6,11 @@
 data/postgres/*
 data/n8n/*
 data/ollama/*
+data/mailpit/*
 !data/postgres/.gitkeep
 !data/n8n/.gitkeep
 !data/ollama/.gitkeep
+!data/mailpit/.gitkeep
 
 # ── Python ───────────────────────────────────────────────────────────────────
 *.pyc
