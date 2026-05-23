@@ -29,3 +29,5 @@ services:
     environment:
       FLASK_ENV: development
       FLASK_DEBUG: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
