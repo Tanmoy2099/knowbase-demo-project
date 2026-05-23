@@ -23,18 +23,18 @@ class N8NClient:
             "Accept": "application/json",
         }
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=8),
-        retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TimeoutException)),
-        reraise=True,
-    )
     # Fields n8n 2.x treats as server-managed (read-only on create/update)
     _READONLY_FIELDS = frozenset({"active", "meta", "id", "createdAt", "updatedAt", "versionId", "usedCredentials"})
 
     def _strip_readonly(self, data: dict) -> dict:
         return {k: v for k, v in data.items() if k not in self._READONLY_FIELDS}
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=8),
+        retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TimeoutException)),
+        reraise=True,
+    )
     def create_workflow(self, workflow_data: dict) -> str:
         payload = self._strip_readonly(workflow_data)
         with httpx.Client(timeout=self.timeout) as client:
