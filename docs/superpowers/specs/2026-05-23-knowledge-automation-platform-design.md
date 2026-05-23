@@ -31,7 +31,7 @@ A production-grade, single-user personal knowledge base. Users save links, notes
 4. n8n fetches external content (webpage scrape, PDF download, YouTube transcript)
 5. n8n calls back `POST /api/webhooks/n8n` with raw content + HMAC-SHA256 signature
 6. Flask verifies signature, runs AI pipeline: summarize → extract tags → assign collection
-7. Flask updates Postgres (`status: enriched`); frontend reflects update via polling or SSE
+7. Flask updates Postgres (`status: enriched`); frontend reflects update via polling (`GET /api/content/:id` every 3s until status is `enriched` or `failed`)
 
 ### AI Provider Factory
 
@@ -100,7 +100,7 @@ Provider is selected at startup. Swapping providers requires only an env var cha
 ### Next.js Frontend
 - Renders UI: save form, content list, collection/tag views
 - Communicates with Flask via typed API client in `lib/`
-- Polls or uses SSE to reflect enrichment status updates
+- Polls `GET /api/content/:id` every 3s to reflect enrichment status updates (SSE deferred to future iteration)
 - No business logic — thin client
 
 ### n8n
