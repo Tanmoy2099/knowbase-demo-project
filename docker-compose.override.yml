@@ -1,0 +1,33 @@
+version: "3.9"
+
+# Development overrides — merged automatically by docker compose up
+# Adds hot-reload, volume mounts, and debug environment variables.
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development
+    # Remove the production healthcheck in dev — the server takes longer to boot
+    healthcheck:
+      disable: true
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    command: flask run --host=0.0.0.0 --port=5000 --reload
+    volumes:
+      - ./backend:/app
+    environment:
+      FLASK_ENV: development
+      FLASK_DEBUG: "1"

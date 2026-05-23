@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .gitignore — knowbase platform
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Python ───────────────────────────────────────────────────────────────────
+*.pyc
+*.pyo
+__pycache__/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+.hypothesis/
+.venv/
+venv/
+env/
+
+# ── Node / Next.js ────────────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+# build/ already listed above
+npm-debug.log*
+yarn-error.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.turbo/
+
+# ── Docker / environment ──────────────────────────────────────────────────────
+# Keep .env.example — it is safe to commit
+.env
+# Additional env overrides
+.env.*
+!.env.example
+
+# ── Application uploads ───────────────────────────────────────────────────────
+uploads/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ── IDE / editors ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.suo
+*.user
+.vs/
+
+# ── Secrets / certificates ────────────────────────────────────────────────────
+# Keep .env.example — it is safe to commit
+*.pem
+*.key
