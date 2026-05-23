@@ -55,7 +55,18 @@ class OllamaProvider(AIProvider):
         ], json_mode=True)
         try:
             parsed = json.loads(raw)
-            items = parsed if isinstance(parsed, list) else parsed.get("tags", [])
+            if isinstance(parsed, list):
+                items = parsed
+            elif isinstance(parsed, dict):
+                if "tags" in parsed:
+                    items = parsed["tags"]
+                elif "name" in parsed and "slug" in parsed:
+                    # llama3.2 sometimes returns a single object instead of array
+                    items = [parsed]
+                else:
+                    items = []
+            else:
+                items = []
             return [TagResult(name=t["name"], slug=t["slug"]) for t in items[:8] if "name" in t and "slug" in t]
         except (json.JSONDecodeError, KeyError):
             logger.warning("Failed to parse tags JSON from Ollama", raw=raw[:200])
