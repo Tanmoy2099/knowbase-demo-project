@@ -27,6 +27,25 @@ services:
       retries: 10
       start_period: 10s
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: knowbase-mailpit
+    restart: unless-stopped
+    networks:
+      - knowbase-net
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI — view all captured emails at http://localhost:8025
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_UI_AUTH_FILE: ""
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8025/api/v1/info || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   n8n:
     image: n8nio/n8n:latest
     container_name: knowbase-n8n
@@ -42,6 +61,17 @@ services:
       WEBHOOK_URL: http://n8n:5678/
       GENERIC_TIMEZONE: UTC
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      # SMTP via local Mailpit — all emails captured, none sent externally
+      N8N_EMAIL_MODE: smtp
+      N8N_SMTP_HOST: mailpit
+      N8N_SMTP_PORT: 1025
+      N8N_SMTP_USER: ""
+      N8N_SMTP_PASS: ""
+      N8N_SMTP_SENDER: noreply@knowbase.local
+      N8N_SMTP_SSL: "false"
+    depends_on:
+      mailpit:
+        condition: service_healthy
     ports:
       - "5678:5678"
     healthcheck:
