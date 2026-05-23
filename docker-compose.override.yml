@@ -11,7 +11,6 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-      - /app/.next
     environment:
       NODE_ENV: development
     # Remove the production healthcheck in dev — the server takes longer to boot
