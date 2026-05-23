@@ -29,11 +29,18 @@ class N8NClient:
         retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TimeoutException)),
         reraise=True,
     )
+    # Fields n8n 2.x treats as server-managed (read-only on create/update)
+    _READONLY_FIELDS = frozenset({"active", "meta", "id", "createdAt", "updatedAt", "versionId", "usedCredentials"})
+
+    def _strip_readonly(self, data: dict) -> dict:
+        return {k: v for k, v in data.items() if k not in self._READONLY_FIELDS}
+
     def create_workflow(self, workflow_data: dict) -> str:
+        payload = self._strip_readonly(workflow_data)
         with httpx.Client(timeout=self.timeout) as client:
             resp = client.post(
                 f"{self.base_url}/api/v1/workflows",
-                json=workflow_data,
+                json=payload,
                 headers=self._headers,
             )
             resp.raise_for_status()
@@ -51,10 +58,11 @@ class N8NClient:
         reraise=True,
     )
     def update_workflow(self, workflow_id: str, workflow_data: dict) -> None:
+        payload = self._strip_readonly(workflow_data)
         with httpx.Client(timeout=self.timeout) as client:
             resp = client.put(
                 f"{self.base_url}/api/v1/workflows/{workflow_id}",
-                json=workflow_data,
+                json=payload,
                 headers=self._headers,
             )
             resp.raise_for_status()
