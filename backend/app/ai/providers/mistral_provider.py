@@ -1,6 +1,6 @@
 import json
 import structlog
-from mistralai import Mistral
+from mistralai.client import Mistral
 from ..base import AIProvider
 from ..types import SummarizeContext, SummaryResult, TagResult, CollectionSuggestion
 from ..retry import with_ai_retry
