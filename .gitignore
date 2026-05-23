@@ -2,6 +2,14 @@
 # .gitignore — knowbase platform
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── Bind mount data directories (postgres, n8n, ollama runtime data) ─────────
+data/postgres/*
+data/n8n/*
+data/ollama/*
+!data/postgres/.gitkeep
+!data/n8n/.gitkeep
+!data/ollama/.gitkeep
+
 # ── Python ───────────────────────────────────────────────────────────────────
 *.pyc
 *.pyo
