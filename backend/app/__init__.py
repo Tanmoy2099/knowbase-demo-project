@@ -17,6 +17,9 @@ logger = structlog.get_logger()
 
 def create_app(config: Config | None = None) -> Flask:
     app = Flask(__name__)
+    # Accept both /api/content and /api/content/ without redirecting.
+    # Flask's default strict_slashes=True causes 308 redirects that break CORS preflight.
+    app.url_map.strict_slashes = False
 
     if config is None:
         config = Config.from_env()
