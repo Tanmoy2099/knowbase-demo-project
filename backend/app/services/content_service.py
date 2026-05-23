@@ -119,3 +119,15 @@ def delete_content_item(item_id: str) -> bool:
     db.session.delete(item)
     db.session.commit()
     return True
+
+
+def extract_pdf_text(file_path: str) -> str:
+    """Extract plain text from a PDF file using pypdf."""
+    from pypdf import PdfReader
+    reader = PdfReader(file_path)
+    pages = []
+    for page in reader.pages:
+        text = page.extract_text()
+        if text:
+            pages.append(text.strip())
+    return "\n\n".join(pages)
