@@ -1,0 +1,55 @@
+{
+  "name": "YouTube Transcript",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "youtube-transcript", "responseMode": "onReceived", "responseData": "allEntries", "options": {}},
+      "id": "a3000001-0000-0000-0000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "youtube-transcript-webhook"
+    },
+    {
+      "parameters": {"jsCode": "const url = $input.first().json.raw_url || '';\nconst match = url.match(/(?:youtube\\.com\\/(?:[^\\/]+\\/.+\\/|(?:v|e(?:mbed)?)\\/|.*[?&]v=)|youtu\\.be\\/)([^\"&?/\\s]{11})/);\nconst videoId = match ? match[1] : null;\nif (!videoId) throw new Error('Could not extract YouTube video ID from: ' + url);\nreturn [{ json: { ...($input.first().json), video_id: videoId } }];"},
+      "id": "a3000001-0000-0000-0000-000000000002",
+      "name": "Extract Video ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {"method": "GET", "url": "=https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={{ $json.video_id }}&format=json", "options": {"timeout": 10000}},
+      "id": "a3000001-0000-0000-0000-000000000003",
+      "name": "Fetch oEmbed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {"jsCode": "const crypto = require('crypto');\nconst webhookData = $('Webhook').first().json;\nconst oEmbed = $input.first().json;\n\nconst rawContent = [\n  oEmbed.title ? 'Title: ' + oEmbed.title : '',\n  oEmbed.author_name ? 'Channel: ' + oEmbed.author_name : '',\n  'URL: ' + (webhookData.raw_url || ''),\n].filter(Boolean).join('\\n');\n\nconst payload = {\n  content_item_id: webhookData.content_item_id,\n  raw_content: rawContent,\n  content_type: 'youtube'\n};\n\nconst secret = $env.N8N_WEBHOOK_SECRET || '';\nconst bodyStr = JSON.stringify(payload);\nconst sig = 'sha256=' + crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');\n\nreturn [{ json: { ...payload, _signature: sig } }];"},
+      "id": "a3000001-0000-0000-0000-000000000004",
+      "name": "Build and Sign Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {"method": "POST", "url": "http://backend:5000/api/webhooks/n8n", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}, {"name": "X-N8N-Signature", "value": "={{ $json._signature }}"}]}, "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({content_item_id: $json.content_item_id, raw_content: $json.raw_content, content_type: $json.content_type}) }}", "options": {"timeout": 30000}},
+      "id": "a3000001-0000-0000-0000-000000000005",
+      "name": "Callback to Flask",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Extract Video ID", "type": "main", "index": 0}]]},
+    "Extract Video ID": {"main": [[{"node": "Fetch oEmbed", "type": "main", "index": 0}]]},
+    "Fetch oEmbed": {"main": [[{"node": "Build and Sign Payload", "type": "main", "index": 0}]]},
+    "Build and Sign Payload": {"main": [[{"node": "Callback to Flask", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"},
+  "meta": {"workflowKey": "youtube-transcript", "version": "1.0.0", "managedBy": "knowbase-sync", "hash": ""}
+}
