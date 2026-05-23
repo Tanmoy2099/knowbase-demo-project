@@ -44,3 +44,11 @@ def sync_workflows():
     from app.services.sync_service import WorkflowSyncService
     result = WorkflowSyncService().sync()
     return jsonify({"data": result, "error": None})
+
+
+@admin_bp.post("/rebuild-graph")
+def rebuild_graph():
+    """Rebuild the topic relationship graph for all enriched content items."""
+    from app.services.graph_service import rebuild_graph as _rebuild
+    result = _rebuild()
+    return jsonify({"data": result, "error": None})

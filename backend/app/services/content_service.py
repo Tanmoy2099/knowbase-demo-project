@@ -131,3 +131,32 @@ def extract_pdf_text(file_path: str) -> str:
         if text:
             pages.append(text.strip())
     return "\n\n".join(pages)
+
+
+def get_related_items(item_id: str, limit: int = 5) -> list[dict]:
+    """Return content items related to item_id, ordered by strength descending."""
+    from app.models.topic_relation import TopicRelation
+
+    relations = (
+        TopicRelation.query
+        .filter(
+            db.or_(
+                TopicRelation.source_id == item_id,
+                TopicRelation.target_id == item_id,
+            )
+        )
+        .order_by(TopicRelation.strength.desc())
+        .limit(limit)
+        .all()
+    )
+
+    result = []
+    for rel in relations:
+        related_id = rel.target_id if rel.source_id == item_id else rel.source_id
+        related = ContentItem.query.get(related_id)
+        if related:
+            d = related.to_dict()
+            d["relation_strength"] = rel.strength
+            d["relation_type"] = rel.relation_type
+            result.append(d)
+    return result
