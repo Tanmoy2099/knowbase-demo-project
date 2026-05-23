@@ -60,6 +60,7 @@ services:
       N8N_PROTOCOL: http
       WEBHOOK_URL: http://n8n:5678/
       GENERIC_TIMEZONE: UTC
+      N8N_SECURE_COOKIE: "false"
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_LICENSE_ACTIVATION_KEY: ${N8N_LICENSE_KEY:-}
       # SMTP via local Mailpit — all emails captured, none sent externally

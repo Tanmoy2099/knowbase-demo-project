@@ -48,7 +48,14 @@ class N8NClient:
             workflow_id = data.get("id") or data.get("data", {}).get("id")
             if not workflow_id:
                 raise N8NAPIError(f"n8n did not return workflow ID. Response: {data}")
-            logger.info("Workflow created in n8n", workflow_id=workflow_id)
+            # Activate the workflow so webhooks and schedules are live
+            activate_resp = client.post(
+                f"{self.base_url}/api/v1/workflows/{workflow_id}/activate",
+                headers=self._headers,
+            )
+            if activate_resp.status_code != 200:
+                logger.warning("Workflow activation failed", workflow_id=workflow_id, status=activate_resp.status_code)
+            logger.info("Workflow created and activated in n8n", workflow_id=workflow_id)
             return str(workflow_id)
 
     @retry(
