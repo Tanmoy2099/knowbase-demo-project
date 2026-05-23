@@ -57,13 +57,20 @@ def enrich_content_item(
             tag = Tag.get_or_create(tag_result.name)
             db.session.add(ContentTag(content_item_id=content_item_id, tag_id=tag.id))
 
-        # Save collection
+        # Save collection — match by name (case-insensitive) first, then slug
         if enrichment.collection:
-            col = Collection.query.filter_by(slug=enrichment.collection.slug).first()
+            from sqlalchemy import func
+            col = (
+                Collection.query
+                .filter(func.lower(Collection.name) == enrichment.collection.name.lower())
+                .first()
+            ) or Collection.query.filter_by(slug=enrichment.collection.slug).first()
+
             if not col:
+                from app.models.tag import slugify
                 col = Collection(
                     name=enrichment.collection.name,
-                    slug=enrichment.collection.slug,
+                    slug=slugify(enrichment.collection.name),
                     description=enrichment.collection.description,
                     ai_suggested=True,
                 )
