@@ -1,0 +1,36 @@
+{
+  "name": "AI Enrichment Callback",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a4000001-0000-0000-0000-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {"jsCode": "const crypto = require('crypto');\nconst input = $input.first().json;\n\nconst payload = {\n  content_item_id: input.content_item_id,\n  raw_content: input.raw_content || '',\n  content_type: input.content_type || 'link'\n};\n\nconst secret = $env.N8N_WEBHOOK_SECRET || '';\nconst bodyStr = JSON.stringify(payload);\nconst sig = 'sha256=' + crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');\n\nreturn [{ json: { ...payload, _signature: sig } }];"},
+      "id": "a4000001-0000-0000-0000-000000000002",
+      "name": "Prepare and Sign",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {"method": "POST", "url": "http://backend:5000/api/webhooks/n8n", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}, {"name": "X-N8N-Signature", "value": "={{ $json._signature }}"}]}, "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({content_item_id: $json.content_item_id, raw_content: $json.raw_content, content_type: $json.content_type}) }}", "options": {"timeout": 30000}},
+      "id": "a4000001-0000-0000-0000-000000000003",
+      "name": "POST to Flask",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {"main": [[{"node": "Prepare and Sign", "type": "main", "index": 0}]]},
+    "Prepare and Sign": {"main": [[{"node": "POST to Flask", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"},
+  "meta": {"workflowKey": "ai-enrichment-callback", "version": "1.0.0", "managedBy": "knowbase-sync", "hash": ""}
+}

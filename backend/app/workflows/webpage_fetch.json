@@ -1,0 +1,46 @@
+{
+  "name": "Webpage Fetch",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "webpage-fetch", "responseMode": "onReceived", "responseData": "allEntries", "options": {}},
+      "id": "a2000001-0000-0000-0000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "webpage-fetch-webhook"
+    },
+    {
+      "parameters": {"method": "GET", "url": "={{ $json.raw_url }}", "options": {"timeout": 15000}},
+      "id": "a2000001-0000-0000-0000-000000000002",
+      "name": "Fetch URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {"jsCode": "const crypto = require('crypto');\nconst webhookData = $('Webhook').first().json;\nconst fetchedData = $input.first();\n\nconst rawContent = typeof fetchedData.json.body === 'string'\n  ? fetchedData.json.body.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 10000)\n  : JSON.stringify(fetchedData.json).slice(0, 10000);\n\nconst payload = {\n  content_item_id: webhookData.content_item_id,\n  raw_content: rawContent,\n  content_type: 'link'\n};\n\nconst secret = $env.N8N_WEBHOOK_SECRET || '';\nconst bodyStr = JSON.stringify(payload);\nconst sig = 'sha256=' + crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');\n\nreturn [{ json: { ...payload, _signature: sig } }];"},
+      "id": "a2000001-0000-0000-0000-000000000003",
+      "name": "Extract and Sign",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {"method": "POST", "url": "http://backend:5000/api/webhooks/n8n", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}, {"name": "X-N8N-Signature", "value": "={{ $json._signature }}"}]}, "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({content_item_id: $json.content_item_id, raw_content: $json.raw_content, content_type: $json.content_type}) }}", "options": {"timeout": 30000}},
+      "id": "a2000001-0000-0000-0000-000000000004",
+      "name": "Callback to Flask",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Fetch URL", "type": "main", "index": 0}]]},
+    "Fetch URL": {"main": [[{"node": "Extract and Sign", "type": "main", "index": 0}]]},
+    "Extract and Sign": {"main": [[{"node": "Callback to Flask", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"},
+  "meta": {"workflowKey": "webpage-fetch", "version": "1.0.0", "managedBy": "knowbase-sync", "hash": ""}
+}
