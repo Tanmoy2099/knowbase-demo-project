@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-gray-950 text-gray-100 antialiased">
         <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
