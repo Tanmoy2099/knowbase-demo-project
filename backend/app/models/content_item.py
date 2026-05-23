@@ -55,8 +55,10 @@ class ContentItem(TimestampMixin, db.Model):
         }
 
     def to_detail_dict(self) -> dict:
+        from app.services.content_service import get_related_items
         d = self.to_dict()
         d["summary"] = self.latest_summary.to_dict() if self.latest_summary else None
         d["tags"] = [ct.tag.to_dict() for ct in self.content_tags]
         d["collections"] = [ci.collection.to_dict() for ci in self.collection_items]
+        d["related_items"] = get_related_items(self.id)
         return d

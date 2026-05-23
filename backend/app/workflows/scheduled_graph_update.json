@@ -4,37 +4,95 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{"field": "cronExpression", "expression": "0 2 * * *"}]
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
         }
       },
       "id": "a5000001-0000-0000-0000-000000000001",
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
-      "parameters": {"method": "POST", "url": "http://backend:5000/api/admin/sync-workflows", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}]}, "options": {"timeout": 60000}},
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:5000/api/admin/rebuild-graph",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
       "id": "a5000001-0000-0000-0000-000000000002",
       "name": "Trigger Workflow Sync",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
-      "parameters": {"jsCode": "const result = $input.first().json;\nconsole.log('Scheduled graph update completed:', JSON.stringify(result));\nreturn [{ json: { status: 'completed', result, timestamp: new Date().toISOString() } }];"},
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconsole.log('Scheduled graph update completed:', JSON.stringify(result));\nreturn [{ json: { status: 'completed', result, timestamp: new Date().toISOString() } }];"
+      },
       "id": "a5000001-0000-0000-0000-000000000003",
       "name": "Log Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     }
   ],
   "connections": {
-    "Schedule Trigger": {"main": [[{"node": "Trigger Workflow Sync", "type": "main", "index": 0}]]},
-    "Trigger Workflow Sync": {"main": [[{"node": "Log Result", "type": "main", "index": 0}]]}
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Workflow Sync": {
+      "main": [
+        [
+          {
+            "node": "Log Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": {"executionOrder": "v1"},
-  "meta": {"workflowKey": "scheduled-graph-update", "version": "1.0.0", "managedBy": "knowbase-sync", "hash": ""}
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflowKey": "scheduled-graph-update",
+    "version": "1.0.0",
+    "managedBy": "knowbase-sync",
+    "hash": ""
+  }
 }
