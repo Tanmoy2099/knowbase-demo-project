@@ -11,9 +11,10 @@ logger = structlog.get_logger()
 
 class OllamaProvider(AIProvider):
     def __init__(self, config):
-        base_url = getattr(config, "OLLAMA_BASE_URL", None) or config.get("OLLAMA_BASE_URL", "http://ollama:11434")
+        base_url = getattr(config, "OLLAMA_BASE_URL", None) or config.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        model = getattr(config, "OLLAMA_MODEL", None) or config.get("OLLAMA_MODEL", "llama3.2")
         self.base_url = base_url.rstrip("/")
-        self.model = "llama3.2"
+        self.model = model
         self.timeout = 120.0
 
     def _chat(self, messages: list[dict], json_mode: bool = False) -> str:

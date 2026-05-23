@@ -20,7 +20,8 @@ class Config:
     AI_PROVIDER: str = "openai"
     OPENAI_API_KEY: str = ""
     MISTRAL_API_KEY: str = ""
-    OLLAMA_BASE_URL: str = "http://ollama:11434"
+    OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
+    OLLAMA_MODEL: str = "llama3.2"
 
     N8N_BASE_URL: str = "http://n8n:5678"
     N8N_API_KEY: str = ""
@@ -60,7 +61,8 @@ class Config:
             AI_PROVIDER=os.environ.get("AI_PROVIDER", "openai"),
             OPENAI_API_KEY=os.environ.get("OPENAI_API_KEY", ""),
             MISTRAL_API_KEY=os.environ.get("MISTRAL_API_KEY", ""),
-            OLLAMA_BASE_URL=os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434"),
+            OLLAMA_BASE_URL=os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434"),
+            OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "llama3.2"),
             N8N_BASE_URL=os.environ.get("N8N_BASE_URL", "http://n8n:5678"),
             N8N_API_KEY=os.environ.get("N8N_API_KEY", ""),
             N8N_WEBHOOK_SECRET=os.environ["N8N_WEBHOOK_SECRET"],
