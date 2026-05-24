@@ -74,3 +74,4 @@ Thumbs.db
 # Keep .env.example — it is safe to commit
 *.pem
 *.key
+.git-credentials
