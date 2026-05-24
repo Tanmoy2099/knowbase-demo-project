@@ -31,7 +31,7 @@ describe("ContentSaveForm", () => {
     const user = userEvent.setup();
     const onSuccess = vi.fn();
     vi.mocked(api.content.create).mockResolvedValueOnce({
-      data: { id: "1", type: "link", status: "pending", raw_url: "https://x.com", title: null, body: null, created_at: "", updated_at: "" },
+      data: { id: "1", type: "link", status: "pending", raw_url: "https://x.com", title: null, body: null, extra_context: null, user_instructions: null, created_at: "", updated_at: "" },
       error: null,
     });
 

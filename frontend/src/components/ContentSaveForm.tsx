@@ -20,6 +20,8 @@ export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
   const [rawUrl, setRawUrl] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [extraContext, setExtraContext] = useState("");
+  const [userInstructions, setUserInstructions] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +34,8 @@ export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
     if (rawUrl) payload.raw_url = rawUrl;
     if (title) payload.title = title;
     if (body) payload.body = body;
+    if (extraContext) payload.extra_context = extraContext;
+    if (userInstructions) payload.user_instructions = userInstructions;
 
     const res = await api.content.create(payload);
 
@@ -41,6 +45,8 @@ export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
       setRawUrl("");
       setTitle("");
       setBody("");
+      setExtraContext("");
+      setUserInstructions("");
       onSuccess();
     }
 
@@ -107,6 +113,36 @@ export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add a title..."
           className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {/* Extra context */}
+      <div>
+        <label htmlFor="extra_context" className="block text-xs text-gray-400 mb-1">
+          Additional context <span className="text-gray-600">(optional)</span>
+        </label>
+        <textarea
+          id="extra_context"
+          value={extraContext}
+          onChange={(e) => setExtraContext(e.target.value)}
+          rows={2}
+          placeholder="Any extra information about this content the AI should know..."
+          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+        />
+      </div>
+
+      {/* User instructions */}
+      <div>
+        <label htmlFor="user_instructions" className="block text-xs text-gray-400 mb-1">
+          AI instructions <span className="text-gray-600">(optional)</span>
+        </label>
+        <textarea
+          id="user_instructions"
+          value={userInstructions}
+          onChange={(e) => setUserInstructions(e.target.value)}
+          rows={2}
+          placeholder="What should the AI focus on? e.g. 'Focus on security implications' or 'Summarize for a beginner'"
+          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
         />
       </div>
 

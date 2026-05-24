@@ -7,6 +7,8 @@ export interface ContentItem {
   raw_url: string | null;
   title: string | null;
   body: string | null;
+  extra_context: string | null;
+  user_instructions: string | null;
   status: ContentStatus;
   created_at: string;
   updated_at: string;
@@ -60,6 +62,8 @@ export interface CreateContentRequest {
   raw_url?: string;
   title?: string;
   body?: string;
+  extra_context?: string;
+  user_instructions?: string;
 }
 
 export interface UpdateContentRequest {
