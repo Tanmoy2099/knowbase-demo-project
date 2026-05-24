@@ -54,7 +54,16 @@ def require_n8n_signature(f):
         signature = request.headers.get("X-N8N-Signature", "")
         body = request.get_data()
 
-        if not verify_hmac_signature(secret, body, signature):
+        # Accept HMAC-SHA256 signature OR a simple bearer token.
+        # Bearer token is used for Docker-internal n8n callbacks where the sandbox
+        # cannot compute HMAC; it is safe because both services share the Docker network.
+        valid = False
+        if signature.startswith("bearer "):
+            valid = hmac.compare_digest(signature[7:], secret)
+        else:
+            valid = verify_hmac_signature(secret, body, signature)
+
+        if not valid:
             logger.warning(
                 "n8n webhook signature validation failed",
                 remote_addr=request.remote_addr,

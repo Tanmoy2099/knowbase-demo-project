@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import json
 import httpx
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -75,10 +78,23 @@ class N8NClient:
             resp.raise_for_status()
             logger.info("Workflow updated in n8n", workflow_id=workflow_id)
 
-    def trigger_ingestion(self, payload: dict) -> None:
+    def trigger_ingestion(self, payload: dict, webhook_secret: str = "") -> None:
+        # Pre-compute the HMAC that n8n will echo back in the callback header.
+        # This avoids requiring crypto primitives inside n8n's sandboxed Code nodes.
+        callback_body = {
+            "content_item_id": payload.get("content_item_id", ""),
+            "raw_content": payload.get("raw_url") or payload.get("body") or "",
+            "content_type": payload.get("type", "link"),
+        }
+        body_str = json.dumps(callback_body)
+        sig = "sha256=" + hmac.new(
+            webhook_secret.encode("utf-8"), body_str.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+
+        trigger_payload = {**payload, "_pre_signature": sig, "_callback_body": body_str}
         webhook_url = f"{self.base_url}/webhook/content-ingestion"
         with httpx.Client(timeout=self.timeout) as client:
-            resp = client.post(webhook_url, json=payload)
+            resp = client.post(webhook_url, json=trigger_payload)
             resp.raise_for_status()
             logger.info("Triggered n8n ingestion workflow", content_item_id=payload.get("content_item_id"))
 

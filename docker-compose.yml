@@ -71,6 +71,8 @@ services:
       N8N_SMTP_PASS: ""
       N8N_SMTP_SENDER: noreply@knowbase.local
       N8N_SMTP_SSL: "false"
+      # Expose shared secret so Code nodes can sign webhook payloads via $env
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET}
     depends_on:
       mailpit:
         condition: service_healthy

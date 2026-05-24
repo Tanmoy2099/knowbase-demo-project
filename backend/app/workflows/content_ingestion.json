@@ -9,101 +9,41 @@
         "responseData": "allEntries",
         "options": {}
       },
-      "id": "a1000001-0000-0000-0000-000000000001",
+      "id": "wh000001-0000-0000-0000-000000000001",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 300],
-      "webhookId": "content-ingestion-webhook"
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "content-ingestion"
     },
     {
       "parameters": {
-        "mode": "rules",
-        "rules": {
-          "rules": [
-            {
-              "conditions": {
-                "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
-                "conditions": [{"leftValue": "={{ $json.type }}", "rightValue": "link", "operator": {"type": "string", "operation": "equals"}}],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "link"
-            },
-            {
-              "conditions": {
-                "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
-                "conditions": [{"leftValue": "={{ $json.type }}", "rightValue": "youtube", "operator": {"type": "string", "operation": "equals"}}],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "youtube"
-            },
-            {
-              "conditions": {
-                "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
-                "conditions": [{"leftValue": "={{ $json.type }}", "rightValue": "note", "operator": {"type": "string", "operation": "equals"}}],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "note"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Webhook wraps data as {headers, params, query, body} \u2014 extract body\nconst item = $input.first().json;\nreturn [{ json: item.body || item }];"
       },
-      "id": "a1000001-0000-0000-0000-000000000002",
-      "name": "Route by Type",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [450, 300]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $json.raw_url }}",
-        "options": {
-          "timeout": 15000,
-          "allowUnauthorizedCerts": false
-        }
-      },
-      "id": "a1000001-0000-0000-0000-000000000003",
-      "name": "Fetch Webpage",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [650, 200]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "=https://www.youtube.com/oembed?url={{ encodeURIComponent($json.raw_url) }}&format=json",
-        "options": {"timeout": 10000}
-      },
-      "id": "a1000001-0000-0000-0000-000000000004",
-      "name": "Fetch YouTube Meta",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [650, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "const items = $input.all();\nreturn items.map(item => ({\n  json: {\n    content_item_id: item.json.content_item_id,\n    raw_content: item.json.body || '',\n    content_type: 'note'\n  }\n}));"
-      },
-      "id": "a1000001-0000-0000-0000-000000000005",
-      "name": "Prepare Note Payload",
+      "id": "nb000001-0000-0000-0000-000000000001",
+      "name": "Normalize Body",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 600]
+      "position": [
+        450,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst items = $input.all();\nreturn items.map(item => {\n  const payload = {\n    content_item_id: item.json.content_item_id || $('Webhook').first().json.content_item_id,\n    raw_content: typeof item.json.body === 'string' ? item.json.body : JSON.stringify(item.json),\n    content_type: item.json.content_type || $('Webhook').first().json.type\n  };\n  const secret = $env.N8N_WEBHOOK_SECRET || '';\n  const bodyStr = JSON.stringify(payload);\n  const sig = 'sha256=' + crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');\n  return { json: { ...payload, _signature: sig, _body_str: bodyStr } };\n});"
+        "jsCode": "// Extract fields from Flask trigger payload\nconst item = $input.first().json;\nreturn [{\n  json: {\n    content_item_id: item.content_item_id,\n    raw_content: item.raw_url || item.body || '',\n    content_type: item.type || 'link',\n  }\n}];"
       },
-      "id": "a1000001-0000-0000-0000-000000000006",
+      "id": "sp000001-0000-0000-0000-000000000001",
       "name": "Sign Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        650,
+        300
+      ]
     },
     {
       "parameters": {
@@ -112,52 +52,71 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Content-Type", "value": "application/json"},
-            {"name": "X-N8N-Signature", "value": "={{ $json._signature }}"}
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-N8N-Signature",
+              "value": "bearer knowbase-webhook-secret-change-in-production"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({content_item_id: $json.content_item_id, raw_content: $json.raw_content, content_type: $json.content_type}) }}",
-        "options": {"timeout": 30000}
+        "jsonBody": "={{ {content_item_id: $json.content_item_id, raw_content: $json.raw_content, content_type: $json.content_type} }}",
+        "options": {
+          "timeout": 30000
+        }
       },
-      "id": "a1000001-0000-0000-0000-000000000007",
+      "id": "cf000001-0000-0000-0000-000000000001",
       "name": "Callback to Flask",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 300]
+      "position": [
+        850,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Route by Type", "type": "main", "index": 0}]]
-    },
-    "Route by Type": {
       "main": [
-        [{"node": "Fetch Webpage", "type": "main", "index": 0}],
-        [{"node": "Fetch YouTube Meta", "type": "main", "index": 0}],
-        [{"node": "Prepare Note Payload", "type": "main", "index": 0}]
+        [
+          {
+            "node": "Normalize Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Fetch Webpage": {
-      "main": [[{"node": "Sign Payload", "type": "main", "index": 0}]]
-    },
-    "Fetch YouTube Meta": {
-      "main": [[{"node": "Sign Payload", "type": "main", "index": 0}]]
-    },
-    "Prepare Note Payload": {
-      "main": [[{"node": "Sign Payload", "type": "main", "index": 0}]]
+    "Normalize Body": {
+      "main": [
+        [
+          {
+            "node": "Sign Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Sign Payload": {
-      "main": [[{"node": "Callback to Flask", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Callback to Flask",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
-  "settings": {"executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "none"},
-  "meta": {
-    "workflowKey": "content-ingestion",
-    "version": "1.0.0",
-    "managedBy": "knowbase-sync",
-    "hash": ""
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
   }
 }

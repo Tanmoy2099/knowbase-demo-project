@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { api } from "@/lib/api";
 import { useContentItem } from "@/hooks/useContent";
 import type { ContentItem, ContentType } from "@/types";
@@ -35,11 +36,27 @@ function StatusDot({ status }: { status: ContentItem["status"] }) {
   );
 }
 
+function ExternalLinkButton({ url }: { url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 px-3 py-1.5 text-xs text-gray-300 hover:text-white transition-all"
+    >
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+      Open in new tab
+    </a>
+  );
+}
+
 export function ContentCard({ item, onRefresh }: ContentCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Only load detail (with summary/tags) when expanded
   const { item: detail } = useContentItem(expanded ? item.id : null);
 
   async function handleDelete(e: React.MouseEvent) {
@@ -51,6 +68,7 @@ export function ContentCard({ item, onRefresh }: ContentCardProps) {
   }
 
   const displayTitle = item.title ?? item.raw_url ?? "Untitled";
+  const hasExternalUrl = (item.type === "link" || item.type === "youtube") && item.raw_url;
 
   return (
     <article
@@ -94,18 +112,34 @@ export function ContentCard({ item, onRefresh }: ContentCardProps) {
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-gray-800 px-4 pb-4 pt-3 space-y-3">
+
+          {/* External link button */}
+          {hasExternalUrl && (
+            <ExternalLinkButton url={item.raw_url!} />
+          )}
+
+          {/* AI Summary with markdown rendering */}
           {detail?.summary && (
-            <div className="text-sm text-gray-300 bg-gray-800/50 rounded-lg p-3">
-              <p className="text-xs text-gray-500 mb-1">AI Summary</p>
-              <p>{detail.summary.text}</p>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <p className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wide">AI Summary</p>
+              <div className="prose prose-sm prose-invert max-w-none text-gray-300
+                [&_strong]:text-gray-100 [&_strong]:font-semibold
+                [&_ul]:mt-2 [&_ul]:space-y-1 [&_ul]:pl-0 [&_ul]:list-none
+                [&_li]:flex [&_li]:items-start [&_li]:gap-2
+                [&_li]:before:content-['•'] [&_li]:before:text-blue-400 [&_li]:before:shrink-0 [&_li]:before:mt-0.5
+                [&_p]:leading-relaxed [&_p]:mb-2 last:[&_p]:mb-0
+              ">
+                <ReactMarkdown>{detail.summary.text}</ReactMarkdown>
+              </div>
               {detail.summary.ai_provider && (
-                <p className="text-xs text-gray-600 mt-1">
-                  via {detail.summary.ai_provider} / {detail.summary.model}
+                <p className="text-xs text-gray-600 mt-3 pt-3 border-t border-gray-700/50">
+                  via {detail.summary.ai_provider} · {detail.summary.model}
                 </p>
               )}
             </div>
           )}
 
+          {/* Tags */}
           {detail?.tags && detail.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {detail.tags.map((tag) => (
@@ -119,6 +153,7 @@ export function ContentCard({ item, onRefresh }: ContentCardProps) {
             </div>
           )}
 
+          {/* Collections */}
           {detail?.collections && detail.collections.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {detail.collections.map((col) => (

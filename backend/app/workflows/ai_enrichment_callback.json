@@ -7,30 +7,90 @@
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
-      "parameters": {"jsCode": "const crypto = require('crypto');\nconst input = $input.first().json;\n\nconst payload = {\n  content_item_id: input.content_item_id,\n  raw_content: input.raw_content || '',\n  content_type: input.content_type || 'link'\n};\n\nconst secret = $env.N8N_WEBHOOK_SECRET || '';\nconst bodyStr = JSON.stringify(payload);\nconst sig = 'sha256=' + crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');\n\nreturn [{ json: { ...payload, _signature: sig } }];"},
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\nconst payload = {\n  content_item_id: input.content_item_id,\n  raw_content: input.raw_content || '',\n  content_type: input.content_type || 'link'\n};\n\nasync function hmacSha256(key, message) {\n  const enc = new TextEncoder();\n  const k = await globalThis.crypto.subtle.importKey(\n    'raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']\n  );\n  const sig = await globalThis.crypto.subtle.sign('HMAC', k, enc.encode(message));\n  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');\n}\n\nconst bodyStr = JSON.stringify(payload);\nconst hex = await hmacSha256('knowbase-webhook-secret-change-in-production', bodyStr);\nconst sig = 'sha256=' + hex;\n\nreturn [{ json: { ...payload, _signature: sig, _body_str: bodyStr } }];"
+      },
       "id": "a4000001-0000-0000-0000-000000000002",
       "name": "Prepare and Sign",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [
+        450,
+        300
+      ]
     },
     {
-      "parameters": {"method": "POST", "url": "http://backend:5000/api/webhooks/n8n", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}, {"name": "X-N8N-Signature", "value": "={{ $json._signature }}"}]}, "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({content_item_id: $json.content_item_id, raw_content: $json.raw_content, content_type: $json.content_type}) }}", "options": {"timeout": 30000}},
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:5000/api/webhooks/n8n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-N8N-Signature",
+              "value": "={{ $json._signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "options": {
+          "timeout": 30000
+        },
+        "body": "={{ $json._body_str }}"
+      },
       "id": "a4000001-0000-0000-0000-000000000003",
       "name": "POST to Flask",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [650, 300]
+      "position": [
+        650,
+        300
+      ]
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {"main": [[{"node": "Prepare and Sign", "type": "main", "index": 0}]]},
-    "Prepare and Sign": {"main": [[{"node": "POST to Flask", "type": "main", "index": 0}]]}
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare and Sign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare and Sign": {
+      "main": [
+        [
+          {
+            "node": "POST to Flask",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": {"executionOrder": "v1"},
-  "meta": {"workflowKey": "ai-enrichment-callback", "version": "1.0.0", "managedBy": "knowbase-sync", "hash": ""}
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflowKey": "ai-enrichment-callback",
+    "version": "1.0.0",
+    "managedBy": "knowbase-sync",
+    "hash": ""
+  }
 }

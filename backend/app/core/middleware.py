@@ -12,7 +12,7 @@ def register_middleware(app: Flask) -> None:
 
     @app.after_request
     def log_request(response):
-        duration_ms = round((time.monotonic() - g.start_time) * 1000, 2)
+        duration_ms = round((time.monotonic() - getattr(g, "start_time", time.monotonic())) * 1000, 2)
         logger.info(
             "http_request",
             method=request.method,
