@@ -14,8 +14,17 @@ def create_content_item(
     raw_url: str | None = None,
     title: str | None = None,
     body: str | None = None,
+    extra_context: str | None = None,
+    user_instructions: str | None = None,
 ) -> ContentItem:
-    item = ContentItem(type=type_, raw_url=raw_url, title=title, body=body)
+    item = ContentItem(
+        type=type_,
+        raw_url=raw_url,
+        title=title,
+        body=body,
+        extra_context=extra_context,
+        user_instructions=user_instructions,
+    )
     db.session.add(item)
     db.session.commit()
     logger.info("Created content item", id=item.id, type=type_)

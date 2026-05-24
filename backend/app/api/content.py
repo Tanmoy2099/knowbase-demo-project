@@ -5,7 +5,6 @@ from pydantic import BaseModel, ValidationError, model_validator
 from typing import Optional, Literal
 from werkzeug.utils import secure_filename
 
-from app.core.rate_limit import limiter
 from app.core.n8n_client import N8NClient
 import app.services.content_service as content_service
 
@@ -22,6 +21,8 @@ class CreateContentRequest(BaseModel):
     raw_url: Optional[str] = None
     title: Optional[str] = None
     body: Optional[str] = None
+    extra_context: Optional[str] = None
+    user_instructions: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_content(self) -> "CreateContentRequest":
@@ -39,7 +40,6 @@ class UpdateContentRequest(BaseModel):
 
 
 @content_bp.post("/")
-@limiter.limit("10 per minute")
 def create_content():
     try:
         payload = CreateContentRequest.model_validate(request.get_json(force=True) or {})
@@ -52,6 +52,8 @@ def create_content():
         raw_url=payload.raw_url,
         title=payload.title,
         body=payload.body,
+        extra_context=payload.extra_context,
+        user_instructions=payload.user_instructions,
     )
 
     try:
@@ -60,12 +62,15 @@ def create_content():
             base_url=current_app.config["N8N_BASE_URL"],
             api_key=current_app.config["N8N_API_KEY"],
         )
-        n8n.trigger_ingestion({
-            "content_item_id": item.id,
-            "type": payload.type,
-            "raw_url": payload.raw_url,
-            "body": payload.body,
-        })
+        n8n.trigger_ingestion(
+            {
+                "content_item_id": item.id,
+                "type": payload.type,
+                "raw_url": payload.raw_url,
+                "body": payload.body,
+            },
+            webhook_secret=current_app.config.get("N8N_WEBHOOK_SECRET", ""),
+        )
     except Exception as e:
         logger.warning("N8N ingestion trigger failed", item_id=item.id, error=str(e))
 
@@ -144,7 +149,6 @@ def delete_content(item_id: str):
 
 
 @content_bp.post("/upload")
-@limiter.limit("10 per minute")
 def upload_pdf():
     """Accept a PDF file upload, extract text, save as content item, enrich with AI."""
     if "file" not in request.files:
