@@ -2,9 +2,9 @@ import json
 import httpx
 import structlog
 from ..base import AIProvider
-from ..types import SummarizeContext, SummaryResult, TagResult, CollectionSuggestion
+from ..types import SummarizeContext, SummaryResult, TagResult, CollectionSuggestion, TitleResult
 from ..retry import with_ai_retry
-from .openai_provider import SUMMARIZE_SYSTEM_PROMPT, TAG_EXTRACTION_SYSTEM_PROMPT, COLLECTION_SYSTEM_PROMPT
+from .openai_provider import SUMMARIZE_SYSTEM_PROMPT, TAG_EXTRACTION_SYSTEM_PROMPT, COLLECTION_SYSTEM_PROMPT, TITLE_SYSTEM_PROMPT
 
 logger = structlog.get_logger()
 
@@ -34,10 +34,14 @@ class OllamaProvider(AIProvider):
 
     @with_ai_retry
     def summarize(self, content: str, context: SummarizeContext) -> SummaryResult:
-        truncated = content[:8000]
+        truncated = content[:12000]
         user_msg = f"Content type: {context.content_type}\n"
         if context.title:
             user_msg += f"Title: {context.title}\n"
+        if context.extra_context:
+            user_msg += f"\nAdditional context from user:\n{context.extra_context}\n"
+        if context.user_instructions:
+            user_msg += f"\nUser instructions (prioritize these):\n{context.user_instructions}\n"
         user_msg += f"\nContent:\n{truncated}"
 
         text = self._chat([
@@ -45,6 +49,16 @@ class OllamaProvider(AIProvider):
             {"role": "user", "content": user_msg},
         ])
         return SummaryResult(text=text.strip(), model=self.model, provider="ollama")
+
+    @with_ai_retry
+    def suggest_title(self, content: str, content_type: str) -> TitleResult:
+        truncated = content[:3000]
+        raw = self._chat([
+            {"role": "system", "content": TITLE_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Content type: {content_type}\n\n{truncated}"},
+        ])
+        title = raw.strip().strip('"').strip("'").split("\n")[0][:120]
+        return TitleResult(title=title)
 
     @with_ai_retry
     def extract_tags(self, content: str) -> list[TagResult]:

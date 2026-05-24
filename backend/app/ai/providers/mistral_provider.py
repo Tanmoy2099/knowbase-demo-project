@@ -2,9 +2,9 @@ import json
 import structlog
 from mistralai.client import Mistral
 from ..base import AIProvider
-from ..types import SummarizeContext, SummaryResult, TagResult, CollectionSuggestion
+from ..types import SummarizeContext, SummaryResult, TagResult, CollectionSuggestion, TitleResult
 from ..retry import with_ai_retry
-from .openai_provider import SUMMARIZE_SYSTEM_PROMPT, TAG_EXTRACTION_SYSTEM_PROMPT, COLLECTION_SYSTEM_PROMPT
+from .openai_provider import SUMMARIZE_SYSTEM_PROMPT, TAG_EXTRACTION_SYSTEM_PROMPT, COLLECTION_SYSTEM_PROMPT, TITLE_SYSTEM_PROMPT
 
 logger = structlog.get_logger()
 
@@ -23,6 +23,10 @@ class MistralProvider(AIProvider):
         user_msg = f"Content type: {context.content_type}\n"
         if context.title:
             user_msg += f"Title: {context.title}\n"
+        if context.extra_context:
+            user_msg += f"\nAdditional context from user:\n{context.extra_context}\n"
+        if context.user_instructions:
+            user_msg += f"\nUser instructions (prioritize these):\n{context.user_instructions}\n"
         user_msg += f"\nContent:\n{truncated}"
 
         response = self.client.chat.complete(
@@ -36,6 +40,21 @@ class MistralProvider(AIProvider):
         )
         text = response.choices[0].message.content or ""
         return SummaryResult(text=text.strip(), model=self.model, provider="mistral")
+
+    @with_ai_retry
+    def suggest_title(self, content: str, content_type: str) -> TitleResult:
+        truncated = content[:3000]
+        result = self.client.chat.complete(
+            model="mistral-small-latest",
+            messages=[
+                {"role": "system", "content": TITLE_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Content type: {content_type}\n\n{truncated}"},
+            ],
+            max_tokens=30,
+            temperature=0.3,
+        )
+        title = result.choices[0].message.content.strip().strip('"').strip("'")
+        return TitleResult(title=title)
 
     @with_ai_retry
     def extract_tags(self, content: str) -> list[TagResult]:

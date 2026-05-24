@@ -2,15 +2,19 @@ import json
 import structlog
 from openai import OpenAI
 from ..base import AIProvider
-from ..types import SummarizeContext, SummaryResult, TagResult, CollectionSuggestion, EnrichmentResult
+from ..types import SummarizeContext, SummaryResult, TagResult, CollectionSuggestion, EnrichmentResult, TitleResult
 from ..retry import with_ai_retry
 
 logger = structlog.get_logger()
 
 SUMMARIZE_SYSTEM_PROMPT = (
-    "You are a knowledge organizer. Summarize the provided content in 2-4 sentences, "
-    "focusing on key insights and takeaways. Be concise and precise. "
-    "Respond with plain text only."
+    "You are a knowledge organizer. Write a detailed summary of the provided content. "
+    "Structure your response as follows:\n"
+    "1. **Overview** (2-3 sentences): What is this content about and why does it matter?\n"
+    "2. **Key Points** (4-8 bullet points): The most important ideas, concepts, or findings.\n"
+    "3. **Takeaways** (1-2 sentences): What should the reader remember or act on?\n\n"
+    "Be thorough — a good summary should let someone understand the content without reading the original. "
+    "Use plain text with markdown formatting (**, bullet points). Do not add a title."
 )
 
 TAG_EXTRACTION_SYSTEM_PROMPT = (
@@ -25,6 +29,12 @@ COLLECTION_SYSTEM_PROMPT = (
     'Return ONLY JSON: {"name": "Collection Name", "slug": "collection-slug", '
     '"description": "One sentence description.", "confidence": 0.85, "is_new": false}. '
     "Return null if the content does not clearly belong to any category."
+)
+
+TITLE_SYSTEM_PROMPT = (
+    "You are a content librarian. Generate a concise, descriptive title (5-10 words) "
+    "for the provided content. The title should clearly convey the main topic. "
+    "Return ONLY the title text — no quotes, no punctuation at the end, no explanation."
 )
 
 
@@ -42,6 +52,10 @@ class OpenAIProvider(AIProvider):
         user_msg = f"Content type: {context.content_type}\n"
         if context.title:
             user_msg += f"Title: {context.title}\n"
+        if context.extra_context:
+            user_msg += f"\nAdditional context from user:\n{context.extra_context}\n"
+        if context.user_instructions:
+            user_msg += f"\nUser instructions (prioritize these):\n{context.user_instructions}\n"
         user_msg += f"\nContent:\n{truncated}"
 
         response = self.client.chat.completions.create(
@@ -55,6 +69,21 @@ class OpenAIProvider(AIProvider):
         )
         text = response.choices[0].message.content or ""
         return SummaryResult(text=text.strip(), model=self.model, provider="openai")
+
+    @with_ai_retry
+    def suggest_title(self, content: str, content_type: str) -> TitleResult:
+        truncated = content[:3000]
+        result = self.client.chat.completions.create(
+            model=self.fast_model,
+            messages=[
+                {"role": "system", "content": TITLE_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Content type: {content_type}\n\n{truncated}"},
+            ],
+            max_tokens=30,
+            temperature=0.3,
+        )
+        title = result.choices[0].message.content.strip().strip('"').strip("'")
+        return TitleResult(title=title)
 
     @with_ai_retry
     def extract_tags(self, content: str) -> list[TagResult]:
