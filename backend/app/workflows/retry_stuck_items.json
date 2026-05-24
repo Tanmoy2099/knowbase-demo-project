@@ -1,0 +1,66 @@
+{
+  "name": "Retry Stuck Items",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/10 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "rs000001-0000-0000-0000-000000000001",
+      "name": "Every 10 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://backend:5000/api/admin/stuck-items",
+        "options": { "timeout": 10000 }
+      },
+      "id": "rs000002-0000-0000-0000-000000000002",
+      "name": "Fetch Stuck Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst items = (resp.data || []);\nif (items.length === 0) return [];\nreturn items.map(item => ({ json: item }));"
+      },
+      "id": "rs000003-0000-0000-0000-000000000003",
+      "name": "Extract Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://backend:5000/api/admin/retry-item/{{ $json.id }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "rs000004-0000-0000-0000-000000000004",
+      "name": "Re-trigger Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Every 10 Minutes": { "main": [[{ "node": "Fetch Stuck Items", "type": "main", "index": 0 }]] },
+    "Fetch Stuck Items": { "main": [[{ "node": "Extract Items", "type": "main", "index": 0 }]] },
+    "Extract Items": { "main": [[{ "node": "Re-trigger Ingestion", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  }
+}
