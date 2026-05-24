@@ -10,12 +10,11 @@ logger = structlog.get_logger()
 
 
 def enrich_content_item(
-    content_item_id: str, raw_content: str, content_type: str
+    content_item_id: str,
+    raw_content: str,
+    content_type: str,
 ) -> None:
-    """
-    Run AI enrichment pipeline on content item.
-    Called from webhook handler after n8n fetches raw content.
-    """
+    """Run AI enrichment pipeline. Reads extra_context and user_instructions from the DB item."""
     from flask import current_app
     from app.ai.factory import get_provider
     from app.ai.types import SummarizeContext
@@ -29,18 +28,24 @@ def enrich_content_item(
         item.status = "fetching"
         db.session.commit()
 
-        # Build config-like object from Flask config
         class _Config:
             def __getattr__(self, name):
                 return current_app.config.get(name, "")
 
         provider = get_provider(_Config())
-        context = SummarizeContext(content_type=content_type, title=item.title)
+        context = SummarizeContext(
+            content_type=content_type,
+            title=item.title,
+            extra_context=item.extra_context,
+            user_instructions=item.user_instructions,
+        )
 
-        # Truncate content for AI processing
         content_for_ai = raw_content[:10000]
-
         enrichment = provider.enrich(content_for_ai, context, _get_collection_names())
+
+        # Auto-set title if not provided by user
+        if not item.title and enrichment.suggested_title:
+            item.title = enrichment.suggested_title.title
 
         # Save summary
         summary = Summary(
@@ -57,7 +62,7 @@ def enrich_content_item(
             tag = Tag.get_or_create(tag_result.name)
             db.session.add(ContentTag(content_item_id=content_item_id, tag_id=tag.id))
 
-        # Save collection — match by name (case-insensitive) first, then slug
+        # Save collection
         if enrichment.collection:
             from sqlalchemy import func
             col = (
@@ -81,23 +86,19 @@ def enrich_content_item(
                 collection_id=col.id, content_item_id=content_item_id
             ).first()
             if not existing:
-                db.session.add(
-                    CollectionItem(
-                        collection_id=col.id, content_item_id=content_item_id
-                    )
-                )
+                db.session.add(CollectionItem(
+                    collection_id=col.id, content_item_id=content_item_id
+                ))
 
         item.status = "enriched"
         db.session.commit()
-        logger.info("Content enrichment complete", id=content_item_id)
+        logger.info("Content enrichment complete", id=content_item_id, title=item.title)
 
     except Exception as e:
         db.session.rollback()
         item.status = "failed"
         db.session.commit()
-        logger.error(
-            "Content enrichment failed", id=content_item_id, error=str(e)
-        )
+        logger.error("Content enrichment failed", id=content_item_id, error=str(e))
 
 
 def _get_collection_names() -> list[str]:
