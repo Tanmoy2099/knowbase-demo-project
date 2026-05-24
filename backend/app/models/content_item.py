@@ -11,6 +11,8 @@ class ContentItem(TimestampMixin, db.Model):
     title = db.Column(db.Text)
     body = db.Column(db.Text)
     status = db.Column(db.String(20), nullable=False, default="pending", index=True)
+    extra_context = db.Column(db.Text, nullable=True)      # user-supplied additional context
+    user_instructions = db.Column(db.Text, nullable=True)  # user-supplied AI instructions
 
     __table_args__ = (
         db.Index("ix_content_items_type", "type"),
@@ -50,6 +52,8 @@ class ContentItem(TimestampMixin, db.Model):
             "title": self.title,
             "body": self.body,
             "status": self.status,
+            "extra_context": self.extra_context,
+            "user_instructions": self.user_instructions,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
