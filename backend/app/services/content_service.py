@@ -127,6 +127,17 @@ def delete_content_item(item_id: str) -> bool:
         return False
     db.session.delete(item)
     db.session.commit()
+    # Remove tags that no longer have any associated content
+    orphaned = (
+        db.session.query(Tag)
+        .outerjoin(ContentTag, ContentTag.tag_id == Tag.id)
+        .filter(ContentTag.tag_id.is_(None))
+        .all()
+    )
+    if orphaned:
+        for tag in orphaned:
+            db.session.delete(tag)
+        db.session.commit()
     return True
 
 
