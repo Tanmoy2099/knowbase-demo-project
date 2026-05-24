@@ -1,7 +1,31 @@
-.PHONY: up up-ollama down down-v build rebuild logs logs-backend logs-frontend \
+.PHONY: start start-openai start-mistral clean \
+        up up-ollama down down-v build rebuild logs logs-backend logs-frontend \
         ps shell-backend shell-frontend shell-db migrate migrate-create \
         test test-backend test-backend-unit test-backend-int test-frontend \
         test-e2e sync-workflows help
+
+# ─────────────────────────────────────────────────────────────────────────────
+# One-command startup
+# ─────────────────────────────────────────────────────────────────────────────
+
+start: ## Full setup and start using local Ollama (default)
+	@bash start.sh ollama
+
+start-openai: ## Full setup and start using OpenAI
+	@bash start.sh openai
+
+start-mistral: ## Full setup and start using Mistral
+	@bash start.sh mistral
+
+clean: ## Remove all containers, volumes, images, node_modules, and build artifacts
+	docker compose down -v --remove-orphans 2>/dev/null || true
+	docker images --format "{{.Repository}} {{.ID}}" | grep -E "knowbase|demo-ai-project" | awk '{print $$2}' | xargs -r docker rmi -f 2>/dev/null || true
+	docker image prune -f 2>/dev/null || true
+	rm -rf frontend/node_modules frontend/.next frontend/tsconfig.tsbuildinfo
+	find backend -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find backend -name "*.pyc" -delete 2>/dev/null || true
+	rm -rf data/postgres data/n8n data/mailpit
+	@echo "✓ Cleaned up everything"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Container lifecycle
