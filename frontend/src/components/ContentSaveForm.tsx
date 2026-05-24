@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import type { ContentType, CreateContentRequest } from "@/types";
 
@@ -8,32 +8,50 @@ interface ContentSaveFormProps {
   onSuccess: () => void;
 }
 
-const CONTENT_TYPES: { value: ContentType; label: string }[] = [
-  { value: "link", label: "Link" },
-  { value: "youtube", label: "YouTube" },
-  { value: "note", label: "Note" },
-  { value: "pdf", label: "PDF" },
-];
+const TYPE_META: Record<ContentType, { label: string; icon: string; color: string }> = {
+  youtube: { label: "YouTube", icon: "▶", color: "text-red-400 bg-red-900/30 border-red-800/50" },
+  link:    { label: "Link",    icon: "🔗", color: "text-blue-400 bg-blue-900/30 border-blue-800/50" },
+  note:    { label: "Note",    icon: "📝", color: "text-green-400 bg-green-900/30 border-green-800/50" },
+  pdf:     { label: "PDF",     icon: "📄", color: "text-orange-400 bg-orange-900/30 border-orange-800/50" },
+};
+
+function detectType(input: string): ContentType {
+  const s = input.trim();
+  if (!s) return "note";
+  if (/(?:youtube\.com\/(?:watch|shorts|embed|live|playlist)|youtu\.be\/)/i.test(s)) return "youtube";
+  if (/^https?:\/\//i.test(s)) return "link";
+  return "note";
+}
 
 export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
-  const [type, setType] = useState<ContentType>("link");
-  const [rawUrl, setRawUrl] = useState("");
+  const [input, setInput] = useState("");
   const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
   const [extraContext, setExtraContext] = useState("");
   const [userInstructions, setUserInstructions] = useState("");
+  const [showMore, setShowMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const detectedType = useMemo(() => detectType(input), [input]);
+  const meta = TYPE_META[detectedType];
+  const isUrl = detectedType === "link" || detectedType === "youtube";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const trimmed = input.trim();
+    if (!trimmed) {
+      setError("Please enter a URL or note text.");
+      return;
+    }
+
     setLoading(true);
 
-    const payload: CreateContentRequest = { type };
-    if (rawUrl) payload.raw_url = rawUrl;
+    const payload: CreateContentRequest = { type: detectedType };
+    if (isUrl) payload.raw_url = trimmed;
+    else payload.body = trimmed;
     if (title) payload.title = title;
-    if (body) payload.body = body;
     if (extraContext) payload.extra_context = extraContext;
     if (userInstructions) payload.user_instructions = userInstructions;
 
@@ -42,19 +60,16 @@ export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
     if (res.error) {
       setError(res.error.message);
     } else {
-      setRawUrl("");
+      setInput("");
       setTitle("");
-      setBody("");
       setExtraContext("");
       setUserInstructions("");
+      setShowMore(false);
       onSuccess();
     }
 
     setLoading(false);
   }
-
-  const needsUrl = type === "link" || type === "youtube";
-  const needsBody = type === "note";
 
   return (
     <form
@@ -65,102 +80,84 @@ export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
         Save Content
       </h2>
 
-      {/* Type selector */}
-      <div className="flex gap-2">
-        {CONTENT_TYPES.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => setType(t.value)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              type === t.value
-                ? "bg-blue-600 text-white"
-                : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* URL field */}
-      {needsUrl && (
-        <div>
-          <label htmlFor="raw_url" className="block text-xs text-gray-400 mb-1">
-            URL <span className="text-red-400">*</span>
-          </label>
-          <input
-            id="raw_url"
-            type="url"
-            value={rawUrl}
-            onChange={(e) => setRawUrl(e.target.value)}
-            required
-            placeholder={type === "youtube" ? "https://youtube.com/watch?v=..." : "https://..."}
-            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      )}
-
-      {/* Title */}
+      {/* Single smart input */}
       <div>
-        <label htmlFor="title" className="block text-xs text-gray-400 mb-1">
-          Title <span className="text-gray-600">(optional)</span>
-        </label>
-        <input
-          id="title"
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Add a title..."
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Extra context */}
-      <div>
-        <label htmlFor="extra_context" className="block text-xs text-gray-400 mb-1">
-          Additional context <span className="text-gray-600">(optional)</span>
-        </label>
         <textarea
-          id="extra_context"
-          value={extraContext}
-          onChange={(e) => setExtraContext(e.target.value)}
-          rows={2}
-          placeholder="Any extra information about this content the AI should know..."
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          rows={isUrl ? 1 : 3}
+          placeholder="Paste a YouTube or website URL, or type a note…"
+          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-all"
         />
+        {/* Detected-type badge */}
+        {input.trim() && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${meta.color}`}>
+              <span>{meta.icon}</span>
+              <span>{meta.label}</span>
+            </span>
+            <span className="text-xs text-gray-600">detected automatically</span>
+          </div>
+        )}
       </div>
 
-      {/* User instructions */}
-      <div>
-        <label htmlFor="user_instructions" className="block text-xs text-gray-400 mb-1">
-          AI instructions <span className="text-gray-600">(optional)</span>
-        </label>
-        <textarea
-          id="user_instructions"
-          value={userInstructions}
-          onChange={(e) => setUserInstructions(e.target.value)}
-          rows={2}
-          placeholder="What should the AI focus on? e.g. 'Focus on security implications' or 'Summarize for a beginner'"
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-        />
-      </div>
+      {/* More options toggle */}
+      <button
+        type="button"
+        onClick={() => setShowMore((v) => !v)}
+        className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+      >
+        <span className={`transition-transform ${showMore ? "rotate-90" : ""}`}>▶</span>
+        {showMore ? "Fewer options" : "More options"}
+        <span className="text-gray-600 ml-1">(title, context, instructions)</span>
+      </button>
 
-      {/* Body */}
-      {(needsBody || type === "pdf") && (
-        <div>
-          <label htmlFor="body" className="block text-xs text-gray-400 mb-1">
-            Content{needsBody && <span className="text-red-400"> *</span>}
-          </label>
-          <textarea
-            id="body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            required={needsBody}
-            rows={4}
-            placeholder="Paste your note or content..."
-            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-          />
+      {showMore && (
+        <div className="space-y-3 pt-1">
+          {/* Title */}
+          <div>
+            <label htmlFor="title" className="block text-xs text-gray-400 mb-1">
+              Title <span className="text-gray-600">(optional — AI will generate one if blank)</span>
+            </label>
+            <input
+              id="title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Override the AI-generated title…"
+              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Extra context */}
+          <div>
+            <label htmlFor="extra_context" className="block text-xs text-gray-400 mb-1">
+              Additional context <span className="text-gray-600">(optional)</span>
+            </label>
+            <textarea
+              id="extra_context"
+              value={extraContext}
+              onChange={(e) => setExtraContext(e.target.value)}
+              rows={2}
+              placeholder="Any extra information the AI should know about this content…"
+              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+            />
+          </div>
+
+          {/* User instructions */}
+          <div>
+            <label htmlFor="user_instructions" className="block text-xs text-gray-400 mb-1">
+              AI instructions <span className="text-gray-600">(optional)</span>
+            </label>
+            <textarea
+              id="user_instructions"
+              value={userInstructions}
+              onChange={(e) => setUserInstructions(e.target.value)}
+              rows={2}
+              placeholder="What should the AI focus on? e.g. 'Explain for a beginner' or 'Focus on security'"
+              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+            />
+          </div>
         </div>
       )}
 
@@ -172,11 +169,11 @@ export function ContentSaveForm({ onSuccess }: ContentSaveFormProps) {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !input.trim()}
         className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 text-sm font-medium transition-colors"
         aria-busy={loading}
       >
-        {loading ? "Saving..." : "Save"}
+        {loading ? "Saving…" : "Save"}
       </button>
     </form>
   );
