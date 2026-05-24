@@ -30,6 +30,10 @@ def register_error_handlers(app: Flask) -> None:
     def method_not_allowed(e):
         return _error_response("METHOD_NOT_ALLOWED", "Method not allowed", 405)
 
+    @app.errorhandler(429)
+    def rate_limit_exceeded(e):
+        return _error_response("RATE_LIMIT_EXCEEDED", "Too many requests", 429)
+
     @app.errorhandler(ValidationError)
     def pydantic_validation_error(e):
         details = [

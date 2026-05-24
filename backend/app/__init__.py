@@ -7,6 +7,7 @@ from .core.config import Config
 from .core.db import db, migrate
 from .core.logging_config import configure_logging
 from .core.errors import register_error_handlers
+from .core.rate_limit import limiter
 from .core.security import configure_security
 from .core.middleware import register_middleware
 from .api import register_blueprints
@@ -30,6 +31,7 @@ def create_app(config: Config | None = None) -> Flask:
     configure_logging(app)
     db.init_app(app)
     migrate.init_app(app, db)
+    limiter.init_app(app)
     configure_security(app)
     register_middleware(app)
     register_error_handlers(app)
