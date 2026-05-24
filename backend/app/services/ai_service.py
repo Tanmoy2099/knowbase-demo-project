@@ -62,8 +62,8 @@ def enrich_content_item(
             tag = Tag.get_or_create(tag_result.name)
             db.session.add(ContentTag(content_item_id=content_item_id, tag_id=tag.id))
 
-        # Save collection
-        if enrichment.collection:
+        # Save collection — only assign if AI is confident enough (>= 0.7)
+        if enrichment.collection and enrichment.collection.confidence >= 0.7:
             from sqlalchemy import func
             col = (
                 Collection.query

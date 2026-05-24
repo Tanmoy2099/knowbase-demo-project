@@ -24,11 +24,15 @@ TAG_EXTRACTION_SYSTEM_PROMPT = (
 )
 
 COLLECTION_SYSTEM_PROMPT = (
-    "You are a content organizer. Given content and existing collections, "
-    "assign the content to the best existing collection or suggest a new one. "
+    "You are a strict content organizer. Your job is to assign content to a collection ONLY when there is a clear, obvious topical match.\n\n"
+    "Rules:\n"
+    "- If an existing collection clearly matches the content topic, return it with confidence >= 0.75.\n"
+    "- If no existing collection clearly matches, suggest a NEW one (is_new: true) with confidence >= 0.75.\n"
+    "- If you are unsure or the content is too general to categorize, return null.\n"
+    "- NEVER assign to a collection just because it exists — the match must be obvious.\n\n"
     'Return ONLY JSON: {"name": "Collection Name", "slug": "collection-slug", '
-    '"description": "One sentence description.", "confidence": 0.85, "is_new": false}. '
-    "Return null if the content does not clearly belong to any category."
+    '"description": "One sentence description.", "confidence": 0.85, "is_new": false}\n'
+    "OR return: null"
 )
 
 TITLE_SYSTEM_PROMPT = (
